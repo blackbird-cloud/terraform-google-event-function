@@ -58,7 +58,6 @@ data "archive_file" "main" {
   excludes    = var.files_to_exclude_in_source_dir
 }
 
-
 resource "google_storage_bucket" "main" {
   count                       = var.create_bucket ? 1 : 0
   name                        = coalesce(var.bucket_name, var.name)
@@ -100,49 +99,54 @@ data "google_project" "default" {
   project_id = var.project_id
 }
 
-resource "google_cloudfunctions_function" "main" {
-  name                          = var.name
-  description                   = var.description
-  available_memory_mb           = var.available_memory_mb
-  max_instances                 = var.max_instances
-  timeout                       = var.timeout_s
-  entry_point                   = var.entry_point
-  ingress_settings              = var.ingress_settings
-  trigger_http                  = var.trigger_http
-  vpc_connector_egress_settings = var.vpc_connector_egress_settings
-  vpc_connector                 = var.vpc_connector
+resource "google_cloudfunctions2_function" "main" {
+  name        = var.name
+  location    = var.location
+  description = var.description
+  labels      = var.labels
+  project     = var.project_id
 
-  dynamic "event_trigger" {
-    for_each = var.trigger_http != null ? [] : [1]
-
-    content {
-      event_type = var.event_trigger["event_type"]
-      resource   = var.event_trigger["resource"]
-
-      failure_policy {
-        retry = var.event_trigger_failure_policy_retry
+  build_config {
+    runtime               = var.runtime
+    entry_point           = var.entry_point
+    environment_variables = var.build_environment_variables
+    source {
+      storage_source {
+        bucket = var.create_bucket ? google_storage_bucket.main[0].name : var.bucket_name
+        object = google_storage_bucket_object.main.name
       }
     }
   }
 
-  dynamic "secret_environment_variables" {
-    for_each = { for item in var.secret_environment_variables : item.key => item }
+  service_config {
+    max_instance_count               = var.max_instance_count
+    min_instance_count               = var.min_instance_count
+    available_memory                 = var.available_memory
+    timeout_seconds                  = var.timeout_s
+    max_instance_request_concurrency = var.max_instance_request_concurrency
+    available_cpu                    = var.available_cpu
+    environment_variables            = var.environment_variables
+    ingress_settings                 = var.ingress_settings
+    vpc_connector_egress_settings    = var.vpc_connector_egress_settings
+    vpc_connector                    = var.vpc_connector
+    all_traffic_on_latest_revision   = var.all_traffic_on_latest_revision
+    service_account_email            = var.service_account_email
+    dynamic "secret_environment_variables" {
+      for_each = { for item in var.secret_environment_variables : item.key => item }
 
-    content {
-      key        = secret_environment_variables.value["key"]
-      project_id = try(data.google_project.nums[secret_environment_variables.value["project_id"]].number, data.google_project.default[0].number)
-      secret     = secret_environment_variables.value["secret_name"]
-      version    = lookup(secret_environment_variables.value, "version", "latest")
+      content {
+        key        = secret_environment_variables.value["key"]
+        project_id = try(data.google_project.nums[secret_environment_variables.value["project_id"]].number, data.google_project.default[0].number)
+        secret     = secret_environment_variables.value["secret_name"]
+        version    = lookup(secret_environment_variables.value, "version", "latest")
+      }
     }
   }
 
-  labels                      = var.labels
-  runtime                     = var.runtime
-  environment_variables       = var.environment_variables
-  source_archive_bucket       = var.create_bucket ? google_storage_bucket.main[0].name : var.bucket_name
-  source_archive_object       = google_storage_bucket_object.main.name
-  project                     = var.project_id
-  region                      = var.region
-  service_account_email       = var.service_account_email
-  build_environment_variables = var.build_environment_variables
+  event_trigger {
+    trigger_region = var.event_trigger["trigger_region"]
+    event_type     = var.event_trigger["event_type"]
+    pubsub_topic   = var.event_trigger["pubsub_topic"]
+    retry_policy   = var.event_trigger["retry_policy"]
+  }
 }

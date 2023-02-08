@@ -14,10 +14,46 @@
  * limitations under the License.
  */
 
-variable "available_memory_mb" {
+variable "available_memory" {
+  type        = string
+  default     = "256Mi"
+  description = "(Optional) The amount of memory available for a function. Defaults to 256M. Supported units are k, M, G, Mi, Gi. If no unit is supplied the value is interpreted as bytes."
+}
+
+variable "available_cpu" {
+  type        = string
+  default     = ""
+  description = "(Optional) The number of CPUs used in a single container instance. Default value is calculated from available memory."
+}
+
+variable "max_instance_request_concurrency" {
   type        = number
-  default     = 256
-  description = "The amount of memory in megabytes allotted for the function to use."
+  default     = 1
+  description = "(Optional) Sets the maximum number of concurrent requests that each instance can receive. Defaults to 1."
+}
+
+variable "all_traffic_on_latest_revision" {
+  type        = bool
+  default     = true
+  description = " (Optional) Whether 100% of traffic is routed to the latest revision. Defaults to true."
+}
+
+variable "min_instance_count" {
+  type        = number
+  default     = null
+  description = "(Optional) The limit on the minimum number of function instances that may coexist at a given time."
+}
+
+variable "max_instance_count" {
+  type        = number
+  default     = null
+  description = "(Optional) The limit on the maximum number of function instances that may coexist at a given time."
+}
+
+variable "location" {
+  description = "(Optional) The location of this cloud function."
+  default     = ""
+  type        = string
 }
 
 variable "description" {
