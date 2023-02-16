@@ -83,7 +83,7 @@ resource "google_storage_bucket_object" "main" {
   bucket              = var.create_bucket ? google_storage_bucket.main[0].name : var.bucket_name
   source              = data.archive_file.main.output_path
   content_disposition = "attachment"
-  content_encoding    = "gzip"
+  content_encoding    = "zip"
   content_type        = "application/zip"
 }
 
@@ -141,12 +141,5 @@ resource "google_cloudfunctions2_function" "main" {
         version    = lookup(secret_environment_variables.value, "version", "latest")
       }
     }
-  }
-
-  event_trigger {
-    trigger_region = var.event_trigger["trigger_region"]
-    event_type     = var.event_trigger["event_type"]
-    pubsub_topic   = var.event_trigger["pubsub_topic"]
-    retry_policy   = var.event_trigger["retry_policy"]
   }
 }
