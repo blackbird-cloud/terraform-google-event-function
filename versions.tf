@@ -24,8 +24,8 @@ terraform {
     }
   }
 
-  provider_meta "google" {
-    module_name = "blueprints/terraform/terraform-google-event-function/v2.5.1"
-  }
+  # provider_meta "google" {
+  #   module_name = "blueprints/terraform/terraform-google-event-function/v2.5.1"
+  # }
 
 }

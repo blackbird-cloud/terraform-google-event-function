@@ -46,7 +46,7 @@ variable "min_instance_count" {
 
 variable "max_instance_count" {
   type        = number
-  default     = null
+  default     = 100
   description = "(Optional) The limit on the maximum number of function instances that may coexist at a given time."
 }
 
@@ -193,7 +193,7 @@ variable "ingress_settings" {
 
 variable "vpc_connector_egress_settings" {
   type        = string
-  default     = null
+  default     = "PRIVATE_RANGES_ONLY"
   description = "The egress settings for the connector, controlling what traffic is diverted through it. Allowed values are ALL_TRAFFIC and PRIVATE_RANGES_ONLY. If unset, this field preserves the previously set value."
 }
 

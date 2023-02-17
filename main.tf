@@ -95,7 +95,6 @@ data "google_project" "nums" {
 }
 
 data "google_project" "default" {
-  count      = length(var.secret_environment_variables) > 0 ? 1 : 0
   project_id = var.project_id
 }
 
@@ -136,10 +135,75 @@ resource "google_cloudfunctions2_function" "main" {
 
       content {
         key        = secret_environment_variables.value["key"]
-        project_id = try(data.google_project.nums[secret_environment_variables.value["project_id"]].number, data.google_project.default[0].number)
+        project_id = try(data.google_project.nums[secret_environment_variables.value["project_id"]].number, data.google_project.default.number)
         secret     = secret_environment_variables.value["secret_name"]
         version    = lookup(secret_environment_variables.value, "version", "latest")
       }
     }
+
   }
+  # event_trigger {
+  #   trigger_region = var.event_trigger["trigger_region"]
+  #   event_type     = var.event_trigger["event_type"]
+  #   pubsub_topic   = var.event_trigger["pubsub_topic"]
+  #   # retry_policy   = var.event_trigger["retry_policy"]
+  # }
+}
+
+resource "google_eventarc_trigger" "trigger" {
+  name            = var.name
+  location        = var.event_trigger["trigger_region"]
+  service_account = "${data.google_project.default.number}-compute@developer.gserviceaccount.com"
+  project         = var.project_id
+  transport {
+    pubsub {
+      topic = var.event_trigger["pubsub_topic"]
+    }
+  }
+
+  matching_criteria {
+    attribute = "type"
+    value     = var.event_trigger["event_type"]
+
+  }
+  destination {
+    cloud_run_service {
+      region  = var.region
+      service = google_cloudfunctions2_function.main.name
+    }
+  }
+}
+
+locals {
+  subscription_id = google_eventarc_trigger.trigger.transport[0].pubsub[0].subscription
+}
+
+module "dlq" {
+  source  = "terraform-google-modules/gcloud/google"
+  version = "3.1.2"
+
+  platform              = "linux"
+  additional_components = []
+
+  create_cmd_entrypoint = "gcloud"
+  create_cmd_body       = "pubsub subscriptions update ${local.subscription_id} --project=${var.project_id} --dead-letter-topic-project=${var.event_trigger["dlq_project_id"]} --dead-letter-topic=${var.event_trigger["dlq_topic_id"]}"
+}
+
+locals {
+  default_ack_deadline_seconds = 10
+  pubsub_svc_account_email     = "service-${data.google_project.default.number}@gcp-sa-pubsub.iam.gserviceaccount.com"
+}
+
+resource "google_pubsub_subscription_iam_member" "subscription_binding" {
+  project      = var.project_id
+  subscription = local.subscription_id
+  role         = "roles/pubsub.subscriber"
+  member       = "serviceAccount:${local.pubsub_svc_account_email}"
+}
+
+resource "google_pubsub_topic_iam_member" "topic_binding" {
+  project = var.project_id
+  topic   = var.event_trigger["dlq_topic_id"]
+  role    = "roles/pubsub.publisher"
+  member  = "serviceAccount:${local.pubsub_svc_account_email}"
 }

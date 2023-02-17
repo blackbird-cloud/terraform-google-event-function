@@ -21,5 +21,10 @@ output "name" {
 
 output "function" {
   description = "The google cloud function"
-  value =  google_cloudfunctions2_function.main
+  value       = google_cloudfunctions2_function.main
+}
+
+output "trigger" {
+  description = "The google eventarc trigger"
+  value       = google_eventarc_trigger.trigger
 }
